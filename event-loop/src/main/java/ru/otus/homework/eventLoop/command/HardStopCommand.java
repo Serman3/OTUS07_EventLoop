@@ -14,7 +14,7 @@ public class HardStopCommand implements Command {
 
     @Override
     public void execute() {
-        eventLoop.setState(() -> Boolean.FALSE);
-        log.info("Command hard stop success");
+        eventLoop.setEventLoopState(null);
+        log.info("Command HardStop success");
     }
 }

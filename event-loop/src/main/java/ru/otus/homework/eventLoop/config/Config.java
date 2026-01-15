@@ -8,6 +8,7 @@ import ru.otus.homework.eventLoop.exceptionHandler.ExceptionHandler;
 import ru.otus.homework.eventLoop.exceptionHandler.LoggingThrowingCommand;
 import ru.otus.homework.eventLoop.ioc.Ioc;
 
+import java.util.concurrent.BlockingDeque;
 import java.util.concurrent.CountDownLatch;
 import java.util.function.Function;
 
@@ -43,15 +44,21 @@ public class Config {
     }
 
     @Bean
-    public void eventLoopSoftStop() {
-        Function<Object[], Object> function = (args) -> new SoftStopCommand((EventLoop) args[0]);
-        ((Command) Ioc.resolve("IoC.Register", new Object[]{"EventLoop.Soft.Stop", function})).execute();
-    }
-
-    @Bean
     public void threadCountDown() {
         Function<Object[], Object> function = (args) -> new ThreadCountDownCommand((CountDownLatch) args[0]);
         ((Command) Ioc.resolve("IoC.Register", new Object[]{"Thread.Count.Down", function})).execute();
+    }
+
+    @Bean
+    public void eventLoopMoveTo() {
+        Function<Object[], Object> function = (args) -> new MoveToCommand((EventLoop) args[0], (BlockingDeque<Command>) args[1]);
+        ((Command) Ioc.resolve("IoC.Register", new Object[]{"EventLoop.Move.To", function})).execute();
+    }
+
+    @Bean
+    public void eventLoopRun() {
+        Function<Object[], Object> function = (args) -> new RunCommand((EventLoop) args[0]);
+        ((Command) Ioc.resolve("IoC.Register", new Object[]{"EventLoop.Run", function})).execute();
     }
 
 }

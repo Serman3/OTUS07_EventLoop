@@ -10,13 +10,15 @@ import ru.otus.homework.eventLoop.command.Command;
 import ru.otus.homework.eventLoop.events.EventLoop;
 import ru.otus.homework.eventLoop.ioc.Ioc;
 import ru.otus.homework.eventLoop.scopes.InitCommand;
+import ru.otus.homework.eventLoop.state.DefaultState;
+import ru.otus.homework.eventLoop.state.MoveToState;
 
 import java.util.List;
 import java.util.concurrent.BlockingDeque;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.LinkedBlockingDeque;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.doThrow;
 
 @ExtendWith(MockitoExtension.class)
@@ -80,23 +82,61 @@ public class EventLoopTest {
     }
 
     @Test
-    public void afterCommandSoftStopThreadIsStoppedTest() throws InterruptedException {
+    public void afterMoveToCommandStateEqualMoveToTest() throws InterruptedException {
         CountDownLatch latch = new CountDownLatch(1);
+        BlockingDeque<Command> helpersDequeCommands = new LinkedBlockingDeque<>();
 
         EventLoop eventLoop = new EventLoop(dequeCommands);
 
         Command threadCountDownCommand = Ioc.resolve("Thread.Count.Down", new Object[]{latch});
-        Command softStopCommand = Ioc.resolve("EventLoop.Soft.Stop", new Object[]{eventLoop});
+        Command modveToCommand = Ioc.resolve("EventLoop.Move.To", new Object[]{eventLoop, helpersDequeCommands});
         Command command6 = Mockito.mock();
         Command command7 = Mockito.mock();
         Command command8 = Mockito.mock();
-        dequeCommands.addAll(List.of(softStopCommand, command6, command7, command8, threadCountDownCommand));
+        dequeCommands.addAll(List.of(threadCountDownCommand, modveToCommand, command6, command7, command8));
 
         ((Command) Ioc.resolve("EventLoop.Start", new Object[]{eventLoop})).execute();
 
         latch.await();
 
+        assertAll(
+                () -> assertEquals(0, dequeCommands.size()),
+                () -> assertEquals(3, helpersDequeCommands.size()),
+                () -> assertEquals(MoveToState.class, eventLoop.getEventLoopState().getClass())
+        );
+    }
+
+    @Test
+    public void afterRunCommandStateEqualDefaultTest() throws InterruptedException {
+        BlockingDeque<Command> helpersDequeCommands = new LinkedBlockingDeque<>();
+
+        CountDownLatch signalEventLoop2RunDone = new CountDownLatch(1);
+
+        EventLoop eventLoop = new EventLoop(dequeCommands);
+        EventLoop eventLoop2 = new EventLoop(helpersDequeCommands);
+
+        Command threadCountDownCommand = Ioc.resolve("Thread.Count.Down", new Object[]{signalEventLoop2RunDone});
+
+        Command moveToCommand = Ioc.resolve("EventLoop.Move.To", new Object[]{eventLoop, helpersDequeCommands});
+        Command runCommandEventLoop2 = Ioc.resolve("EventLoop.Run", new Object[]{eventLoop2});
+        Command command6 = Mockito.mock();
+        Command command7 = Mockito.mock();
+        Command command8 = Mockito.mock();
+        dequeCommands.addAll(List.of(moveToCommand, command6, threadCountDownCommand, runCommandEventLoop2, command7, command8));
+
+        ((Command) Ioc.resolve("EventLoop.Start", new Object[]{eventLoop})).execute();
+
+        eventLoop.join();
+
+        ((Command) Ioc.resolve("EventLoop.Start", new Object[]{eventLoop2})).execute();
+
+        signalEventLoop2RunDone.await();
+
+        assertEquals(DefaultState.class, eventLoop2.getEventLoopState().getClass());
         assertEquals(0, dequeCommands.size());
+
+        eventLoop2.join();
+        assertEquals(0, helpersDequeCommands.size());
     }
 
 }
