@@ -1,7 +1,10 @@
 package ru.otus.homework.eventLoop.command;
 
+import lombok.extern.slf4j.Slf4j;
+
 import java.util.concurrent.CountDownLatch;
 
+@Slf4j
 public class ThreadCountDownCommand implements Command {
 
     private final CountDownLatch countDownLatch;
@@ -12,6 +15,7 @@ public class ThreadCountDownCommand implements Command {
 
     @Override
     public void execute() {
+        log.info("Command ThreadCountDown success");
         countDownLatch.countDown();
     }
 }
