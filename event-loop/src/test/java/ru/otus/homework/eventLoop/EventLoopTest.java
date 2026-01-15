@@ -108,37 +108,35 @@ public class EventLoopTest {
 
     @Test
     public void afterRunCommandStateEqualDefaultTest() throws InterruptedException {
-        CountDownLatch latch = new CountDownLatch(1);
-        CountDownLatch latch2 = new CountDownLatch(1);
-
         BlockingDeque<Command> helpersDequeCommands = new LinkedBlockingDeque<>();
 
+        CountDownLatch signalEventLoop2RunDone = new CountDownLatch(1);
+
         EventLoop eventLoop = new EventLoop(dequeCommands);
+        EventLoop eventLoop2 = new EventLoop(helpersDequeCommands);
 
-        Command threadCountDownCommand = Ioc.resolve("Thread.Count.Down", new Object[]{latch});
-        Command threadCountDownCommand2 = Ioc.resolve("Thread.Count.Down", new Object[]{latch2});
+        Command threadCountDownCommand = Ioc.resolve("Thread.Count.Down", new Object[]{signalEventLoop2RunDone});
 
-        Command modveToCommand = Ioc.resolve("EventLoop.Move.To", new Object[]{eventLoop, helpersDequeCommands});
-        Command runCommand = Ioc.resolve("EventLoop.Run", new Object[]{eventLoop});
+        Command moveToCommand = Ioc.resolve("EventLoop.Move.To", new Object[]{eventLoop, helpersDequeCommands});
+        Command runCommandEventLoop2 = Ioc.resolve("EventLoop.Run", new Object[]{eventLoop2});
         Command command6 = Mockito.mock();
         Command command7 = Mockito.mock();
         Command command8 = Mockito.mock();
-        dequeCommands.addAll(List.of(threadCountDownCommand, modveToCommand, command6, threadCountDownCommand2, runCommand, command7, command8));
+        dequeCommands.addAll(List.of(moveToCommand, command6, threadCountDownCommand, runCommandEventLoop2, command7, command8));
 
         ((Command) Ioc.resolve("EventLoop.Start", new Object[]{eventLoop})).execute();
 
-        latch.await();
+        eventLoop.join();
 
-        EventLoop eventLoop2 = new EventLoop(helpersDequeCommands);
         ((Command) Ioc.resolve("EventLoop.Start", new Object[]{eventLoop2})).execute();
 
-        latch2.await();
+        signalEventLoop2RunDone.await();
 
-        assertAll(
-                () -> assertEquals(0, dequeCommands.size()),
-                () -> assertEquals(2, helpersDequeCommands.size()),
-                () -> assertEquals(DefaultState.class, eventLoop2.getEventLoopState().getClass())
-        );
+        assertEquals(DefaultState.class, eventLoop2.getEventLoopState().getClass());
+        assertEquals(0, dequeCommands.size());
+
+        eventLoop2.join();
+        assertEquals(0, helpersDequeCommands.size());
     }
 
 }
